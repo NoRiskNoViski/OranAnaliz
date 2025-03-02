@@ -1,6 +1,9 @@
 # Yasal Uyarı
 Bu projenin amacı, geçmiş maç oranlarını analiz ederek oranlar ile ilgili istatistiksel bilgiler sunmaktır. OranAnaliz, yalnızca oranları analiz eder ve herhangi bir bahis oynama, yönlendirme veya teşvik etme amacı taşımaz.
 
+# Bilgilendirme
+historic_matches.json dosyası 02.12.2024 - 03.02.2025 tarihleri arasındaki geçmiş maç verilerini içerir. Eğer bu verileri kullanmak isterseniz, dosyayı "Veriler" klasörüne ekleyerek programın otomatik olarak geçmiş maçları tanımasını sağlayabilirsiniz.
+
 # Ayarlar
 ⚙️ Kullanıcı Tarafından Değiştirilebilecek Ayarlar
 
