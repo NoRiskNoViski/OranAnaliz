@@ -11,8 +11,6 @@ OranAnaliz projesinde kullanıcıların ihtiyaçlarına göre değiştirebilece�
 
 📍 Bulunduğu Yer: get_date_range_choice() fonksiyonu
 
-📍 Kod İçindeki Kısım:
-
 ranges = {
     "1": 1, "2": 3, "3": 5, "4": 7,
     "5": 30, "6": 90, "7": 180, "8": 365
@@ -24,7 +22,6 @@ Kullanıcı analiz yaparken, geçmiş kaç gün içindeki maçları kontrol etme
 2️⃣ Benzer Maçları Belirleme Eşiği
 
 📍 Bulunduğu Yer: find_similar_matches() fonksiyonu
-📍 Kod İçindeki Kısım:
 
 threshold = 0.05
 
@@ -34,7 +31,6 @@ Oran karşılaştırmalarında 0.05 varsayılan eşik değeridir. Bu, bugünkü 
 3️⃣ Kaydedilen Dosya Konumu
 
 📍 Bulunduğu Yer: get_base_directory() fonksiyonu
-📍 Kod İçindeki Kısım:
 
 if os_type == "windows":
     return "C:\\Oran Analiz"
@@ -47,7 +43,6 @@ Bu ayar, analiz sonuçlarının hangi klasöre kaydedileceğini belirler. Window
 4️⃣ Güncellenmesi Gereken Günlük Veri Aralığı
 
 📍 Bulunduğu Yer: auto_update_data() fonksiyonu
-📍 Kod İçindeki Kısım:
 
 start_date = end_date - timedelta(days=3)
 
