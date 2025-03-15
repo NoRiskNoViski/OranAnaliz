@@ -749,7 +749,7 @@ def find_similar_matches(historical_df: pd.DataFrame, today_df: pd.DataFrame, th
     similar_matches.sort(key=lambda x: x["Eşleşen Kategori Sayısı"], reverse=True)
     return similar_matches
 
-def save_results_to_file(similar_matches: List[Dict], base_path: str, is_single_match: bool, selected_teams: str = None):
+def save_results_to_file(similar_matches: List[Dict], base_path: str, is_single_match: bool, selected_teams: str = None, today_df: pd.DataFrame = None):
     def convert_score_to_result(home: int, away: int) -> str:
         """Skorları IY/MS formatına çevirir (1, X, 2)"""
         if home > away:
@@ -808,7 +808,62 @@ def save_results_to_file(similar_matches: List[Dict], base_path: str, is_single_
                 f.write("─" * 50 + "\n")
                 f.write(f"🏟️ Analiz Edilen Maç: {today_match}\n")
                 f.write("─" * 50 + "\n")
+                
+                # Bugünkü maçın oranlarını göster
+                if today_df is not None:
+                    # Ev sahibi ve deplasman takım isimlerini ayıkla
+                    teams = today_match.split(' vs ')
+                    if len(teams) == 2:
+                        home_team, away_team = teams
+                        match_rows = today_df[(today_df['Ev Sahibi'] == home_team) & (today_df['Deplasman'] == away_team)]
+                        
+                        if not match_rows.empty:
+                            match_row = match_rows.iloc[0]
+                            f.write("\n📊 Bugünkü Maçın Oranları:\n")
+                            f.write("─" * 40 + "\n")
+                            
+                            # Maç Sonucu oranlarını göster
+                            ms_1 = match_row.get('Maç Sonucu_1', '-')
+                            ms_x = match_row.get('Maç Sonucu_X', '-')
+                            ms_2 = match_row.get('Maç Sonucu_2', '-')
+                            
+                            f.write("📌 Maç Sonucu\n")
+                            f.write(f"1  {ms_1}\n")
+                            f.write(f"X  {ms_x}\n")
+                            f.write(f"2  {ms_2}\n")
+                            f.write("\n")
+                            
+                            # İlk Yarı oranlarını göster
+                            iy_1 = match_row.get('İlk Yarı_1', '-')
+                            iy_x = match_row.get('İlk Yarı_X', '-')
+                            iy_2 = match_row.get('İlk Yarı_2', '-')
+                            
+                            f.write("📌 İlk Yarı\n")
+                            f.write(f"1  {iy_1}\n")
+                            f.write(f"X  {iy_x}\n")
+                            f.write(f"2  {iy_2}\n")
+                            f.write("\n")
+                            
+                            # EV 1.5 ve DEP 1.5 oranlarını göster
+                            ev_alt = match_row.get('EV 1.5_Alt', '-')
+                            ev_ust = match_row.get('EV 1.5_Üst', '-')
+                            
+                            f.write("📌 EV 1.5\n")
+                            f.write(f"Alt  {ev_alt}\n")
+                            f.write(f"Üst  {ev_ust}\n")
+                            f.write("\n")
+                            
+                            dep_alt = match_row.get('DEP 1.5_Alt', '-')
+                            dep_ust = match_row.get('DEP 1.5_Üst', '-')
+                            
+                            f.write("📌 DEP 1.5\n")
+                            f.write(f"Alt  {dep_alt}\n")
+                            f.write(f"Üst  {dep_ust}\n")
+                            f.write("\n")
+                            
+                            f.write("─" * 40 + "\n")
 
+                # Bulunan benzer maçların sayısını yaz
                 market_stats = {}
                 outcome_stats = {}
                 total_matches = len(matches)
@@ -1049,7 +1104,7 @@ def analyze_matches():
     similar_matches = find_similar_matches(historical_df, analysis_df)
 
     if similar_matches:
-        save_results_to_file(similar_matches, analysis_dir, is_single_match, selected_teams)
+        save_results_to_file(similar_matches, analysis_dir, is_single_match, selected_teams,analysis_df)
     else:
         print("\n❌ Benzer Maç Bulunamadı!")
 
