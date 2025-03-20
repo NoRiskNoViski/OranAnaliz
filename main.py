@@ -77,79 +77,143 @@ def auto_update_data(historic_file: str) -> Dict:
             return historic_data
 
         current_time = datetime.now(timezone.utc)
-        end_date = current_time
-        start_date = end_date - timedelta(days=3)
-
-        print(f"\n📊 {start_date.strftime('%d.%m.%Y')} - {end_date.strftime('%d.%m.%Y')} arası maçlar güncelleniyor...")
-
+        current_date_str = current_time.strftime("%Y-%m-%d")
+        
+        # Son güncelleme tarihini kontrol et
+        last_update_str = historic_data.get("last_update")
+        if last_update_str:
+            try:
+                last_update = datetime.strptime(last_update_str, "%Y-%m-%d %H:%M:%S")
+                last_update = last_update.replace(tzinfo=timezone.utc)
+                last_update_date_str = last_update.strftime("%Y-%m-%d")
+            except:
+                # Tarih formatı sorunluysa bugünden 30 gün öncesini baz alalım
+                last_update_date_str = (current_time - timedelta(days=30)).strftime("%Y-%m-%d")
+        else:
+            # Hiç güncelleme yapılmamışsa bugünden 30 gün öncesini baz alalım
+            last_update_date_str = (current_time - timedelta(days=30)).strftime("%Y-%m-%d")
+        
+        # Tarih aralığını belirle (son güncelleme tarihinden bugüne kadar)
+        start_date = datetime.strptime(last_update_date_str, "%Y-%m-%d").date()
+        end_date = current_time.date()
+        
+        print(f"\n📊 {start_date.strftime('%d.%m.%Y')} - {end_date.strftime('%d.%m.%Y')} arası tüm maçlar güncelleniyor...")
+        
         update_stats = {"new_matches": 0, "updated_matches": 0, "processed_days": 0, "errors": 0}
         
         def process_day(date_str):
             nonlocal update_stats
             try:
+                # Önce geçmiş verilerde bu tarih var mı kontrol et
+                day_has_data = date_str in historic_data["matches"] and len(historic_data["matches"][date_str]) > 0
+                
+                # Günün maçlarını al
                 daily_matches = get_matches_for_date(token, date_str)
+                
                 if not daily_matches:
                     print(f"❌ {date_str} için veri bulunamadı.")
                     return
-
+                
+                # Bitmiş maçları filtrele
                 finished_matches = [match for match in daily_matches if match.get("Status") == 3]
-
+                
                 if finished_matches:
-                    if date_str not in historic_data["matches"]:
+                    if not day_has_data:
+                        # Bu gün için hiç veri yoksa, tüm bitmiş maçları ekle
                         historic_data["matches"][date_str] = finished_matches
                         update_stats["new_matches"] += len(finished_matches)
+                        print(f"✅ {date_str}: {len(finished_matches)} yeni maç eklendi.")
                     else:
+                        # Bu gün için veri varsa, eksik maçları ekle ve mevcut maçları güncelle
                         existing_matches = historic_data["matches"][date_str]
                         existing_match_ids = {m.get("id"): m for m in existing_matches}
-
+                        
+                        new_matches_count = 0
                         updated_count = 0
+                        
                         for new_match in finished_matches:
                             match_id = new_match.get("id")
                             if match_id in existing_match_ids:
+                                # Mevcut maçın bilgilerini güncelle
                                 if update_match_fields(existing_match_ids[match_id], new_match):
                                     updated_count += 1
                             else:
+                                # Yeni maçı ekle
                                 existing_matches.append(new_match)
-                                update_stats["new_matches"] += 1
-
-                        if updated_count > 0:
-                            update_stats["updated_matches"] += updated_count
-
+                                new_matches_count += 1
+                        
+                        update_stats["new_matches"] += new_matches_count
+                        update_stats["updated_matches"] += updated_count
+                        
+                        if new_matches_count > 0 or updated_count > 0:
+                            print(f"✅ {date_str}: {new_matches_count} yeni maç, {updated_count} maç güncellendi.")
+                    
                     update_stats["processed_days"] += 1
                 else:
-                    print(f"❌ {date_str}: Bitmiş maç bulunamadı.")
+                    print(f"ℹ️ {date_str}: Bitmiş maç bulunamadı.")
             
             except Exception as e:
                 update_stats["errors"] += 1
                 print(f"❌ {date_str} verisi işlenirken hata: {str(e)}")
-
-        # Asenkron işlem başlat
+        
+        # Tarih aralığındaki her gün için thread oluştur
         threads = []
         check_date = start_date
-        while check_date.date() <= end_date.date():
+        while check_date <= end_date:
             date_str = check_date.strftime("%Y-%m-%d")
             thread = threading.Thread(target=process_day, args=(date_str,))
             threads.append(thread)
             thread.start()
             check_date += timedelta(days=1)
-
+        
         # Tüm thread'lerin bitmesini bekle
         for thread in threads:
             thread.join()
-
+        
+        # Bugünün bitiş saatini kontrol et ve günü güncelle
+        # Gün içinde biten maçları da almak için bugünü her zaman kontrol ediyoruz
+        today_str = current_time.strftime("%Y-%m-%d")
+        if today_str not in historic_data["matches"]:
+            historic_data["matches"][today_str] = []
+        
+        today_matches = get_matches_for_date(token, today_str)
+        if today_matches:
+            today_finished_matches = [match for match in today_matches if match.get("Status") == 3]
+            
+            if today_finished_matches:
+                existing_matches = historic_data["matches"][today_str]
+                existing_match_ids = {m.get("id"): m for m in existing_matches}
+                
+                new_today_matches = 0
+                updated_today_matches = 0
+                
+                for new_match in today_finished_matches:
+                    match_id = new_match.get("id")
+                    if match_id in existing_match_ids:
+                        if update_match_fields(existing_match_ids[match_id], new_match):
+                            updated_today_matches += 1
+                    else:
+                        existing_matches.append(new_match)
+                        new_today_matches += 1
+                
+                if new_today_matches > 0 or updated_today_matches > 0:
+                    print(f"✅ Bugün ({today_str}): {new_today_matches} yeni bitmiş maç, {updated_today_matches} maç güncellendi.")
+                    update_stats["new_matches"] += new_today_matches
+                    update_stats["updated_matches"] += updated_today_matches
+        
         # Güncelleme tamamlandıktan sonra kaydet
         historic_data["last_update"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
         save_historic_data(historic_data, historic_file)
-
+        
         print("\n📊 Güncelleme Özeti:")
         print(f"📅 İşlenen gün: {update_stats['processed_days']}")
         print(f"📈 Yeni maç: {update_stats['new_matches']}")
         print(f"🔄 Güncellenen maç: {update_stats['updated_matches']}")
         if update_stats["errors"] > 0:
             print(f"❌ Hatalı gün: {update_stats['errors']}")
-
+        
         return historic_data
-
+    
     except Exception as e:
         print(f"\n❌ Otomatik güncelleme hatası: {str(e)}")
         return historic_data
